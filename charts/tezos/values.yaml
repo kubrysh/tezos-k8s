@@ -242,9 +242,23 @@ nodes:
     instances:
       - is_bootstrap_node: false
         config:
+          rpc:
+            listen-addrs: ["localhost:8732"]
           shell:
             history_mode: rolling
           metrics_addr: ["0.0.0.0:9932"]
+  archive-node:
+    storage_size: 100Gi
+    runs:
+      - octez_node
+    instances:
+      - is_bootstrap_node: false
+        config:
+          rpc:
+            listen-addrs: ["localhost:8733"]
+          shell:
+            history_mode: archive
+          metrics_addr: ["0.0.0.0:9933"]
 # End nodes
 
 ## Configuration for K8s Service resources. Configuring the labels selector of a
@@ -337,7 +351,7 @@ expected_proof_of_work: 26
 ##   "https://teztnets.xyz/mondaynet". It is helpful for running
 ##   testnets and shouldn't be needed in general.
 node_config_network:
-  chain_name: mainnet
+  chain_name: ghostnet
   ## When joining a public network, a tezos node will by default
   ## connect to the boot-nodes of the selected chain. This may not
   ## always be desired. For example, you may want to run a mainnet
@@ -502,39 +516,38 @@ protocols:
 #       # indexer_log_level: Debug
 
 ## Set values `indexerRpcUrl` and `db.password` for an indexer to be created.
-bcdIndexer:
-  images:
-    api: ghcr.io/baking-bad/bcdhub-api:4.4.0
-    indexer: ghcr.io/baking-bad/bcdhub-indexer:4.4.0
-    gui: ghcr.io/baking-bad/bcdhub-gui:4.4.0
-    postgres: postgres:14
+tzkt:
+  api_image: "bakingbad/tzkt-api"
+  api_image_tag: "1.11.0"
+  indexer_image: "bakingbad/tzkt-sync"
+  indexer_image_tag: "1.11.0"
 
-  gui:
-    enabled: false
-    ## Url of the BCD api for the frontend to hit
-    apiUrl: http://localhost:14000
-    ## Url to the RPC backend for the frontend to hit
-    rpcUrl: http://localhost:8732
-
-  ## RPC url of the node to be indexed
-  # indexerRpcUrl: http://archive-baking-node-0.archive-baking-node:8732
-
-  db:
-    # By default creates a postgres db container. Setting to true won't create
-    # it and instead expects credentials for an external postgres database.
-    isExternal: false
-    hostname: localhost
-    name: bcd
-    password: bcd-password
-    user: bcd
-
-  # For the pv for the optional postgres container
+  ## Database volumeClaimTemplates config
   storageClassName: ""
-  storage: "300Gi"
+  storage: "100Gi"
+  ## Statefulset annotations
+  # annotations:
 
-  imagePullSecrets: {}
-  podAnnotations: {}
-  podSecurityContext: {}
-  affinity: {}
-  nodeSelector: {}
-  tolerations: {}
+  ## Indexer replicas
+  replicas: 1
+
+  ## Tzkt provides new snapshots as they update their code. Update your
+  ## indexers by specifying new docker image tags and by using the matching
+  ## db_snapshot_url. Spin up an additional replica if you only have one to
+  ## avoid downtime. See tzkt's readme for public networks' db snapshot urls.
+  ## If you want to index a brand new archive node you are spinning up, just
+  ## let the indexer start syncing with it from scratch.
+  ## https://github.com/baking-bad/tzkt
+  db_snapshot_url: https://snapshots.tzkt.io/tzkt_v1.11_ghostnet.backup
+
+  ## Configurable tzkt fields
+  config:
+    ## Url of the archive node to index. You will need to create an archive node up
+    ## above in the `nodes` section. The `rpc_url` field is looking for a node named
+    ## `archive-node`.
+    rpc_url: http://localhost:8733
+    db_name: db
+    db_user: foo
+    db_password: bar
+    # api_log_level: Debug
+    # indexer_log_level: Debug
