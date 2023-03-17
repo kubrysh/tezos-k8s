@@ -278,9 +278,9 @@ services:
 #     metrics_addr: [ ":9932" ]
 # to your config.
 serviceMonitor:
-  enabled: false
+  enabled: true
   labels:
-    # release: my-monitoring-release
+    release: dok8s-monitoring
 
 # # Signers
 #
